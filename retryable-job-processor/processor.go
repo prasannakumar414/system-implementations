@@ -48,8 +48,8 @@ func (p *Processor) Start() {
 			}
 		case jr := <-jobResults:
 			meta := p.JobMap[jr.JobID]
+			p.Cc++
 			if jr.Success {
-				p.Cc++
 				meta.Success = true
 			} else {
 				if meta.RetryCount > 0 {
