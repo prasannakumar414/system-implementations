@@ -35,9 +35,8 @@ func (p *Processor) Process(jobID string, jobMeta JobMeta) {
 func (p *Processor) Start() {
 	ticker := time.NewTicker(time.Second)
 	jobResults := make(chan JobResult, 1)
-	for {
-		select {
-		case <-ticker.C:
+	go func() {
+		for range ticker.C {
 			if len(p.JobQueue) != 0 && p.Cc > 0 {
 				job := p.JobQueue[0]
 				p.JobQueue = p.JobQueue[1:]
@@ -46,18 +45,19 @@ func (p *Processor) Start() {
 					jobResults <- job.Execute()
 				}()
 			}
-		case jr := <-jobResults:
-			meta := p.JobMap[jr.JobID]
-			p.Cc++
-			if jr.Success {
-				meta.Success = true
-			} else {
-				if meta.RetryCount > 0 {
-					meta.RetryCount--
-					p.JobQueue = append(p.JobQueue, meta.Job)
-				}
-			}
-			p.JobMap[jr.JobID] = meta
 		}
+	}()
+	for jr := range jobResults {
+		meta := p.JobMap[jr.JobID]
+		p.Cc++
+		if jr.Success {
+			meta.Success = true
+		} else {
+			if meta.RetryCount > 0 {
+				meta.RetryCount--
+				p.JobQueue = append(p.JobQueue, meta.Job)
+			}
+		}
+		p.JobMap[jr.JobID] = meta
 	}
 }
